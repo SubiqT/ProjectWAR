@@ -34,11 +34,11 @@ namespace AuthenticationServer
         public static FileInfo Info;
         public static string StrInfo;
 
-        public static AccountMgr AcctMgr
+        public static IAccountMgr AcctMgr
         {
             get
             {
-                return Client.GetServerObject<AccountMgr>();
+                return Client.GetServerObject<IAccountMgr>();
             }
         }
 

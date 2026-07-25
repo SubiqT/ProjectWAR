@@ -12,7 +12,7 @@ namespace LobbyServer
         public static RpcClient Client;
         public static TCPServer Server;
 
-        public static AccountMgr AcctMgr => Client.GetServerObject<AccountMgr>();
+        public static IAccountMgr AcctMgr => Client.GetServerObject<IAccountMgr>();
 
         private static void Main(string[] args)
         {

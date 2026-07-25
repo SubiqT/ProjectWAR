@@ -7,7 +7,7 @@ namespace AccountCacher
 {
     internal class Core
     {
-        public static AccountMgr AcctMgr;
+        public static IAccountMgr AcctMgr;
         public static AccountConfig Config;
         public static RpcServer Server;
 
@@ -34,7 +34,7 @@ namespace AccountCacher
             if (!Server.Start(Config.RpcInfo.RpcIp, Config.RpcInfo.RpcPort))
                 ConsoleMgr.WaitAndExit(2000);
 
-            AcctMgr = Server.GetLocalObject<AccountMgr>();
+            AcctMgr = Server.GetLocalObject<IAccountMgr>();
             AcctMgr.InitializeCache(Config.EnableCache, Config.MaxCacheSize);
             AcctMgr.LoadRealms();
             AcctMgr.LoadPending();
