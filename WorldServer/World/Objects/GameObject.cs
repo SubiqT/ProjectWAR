@@ -753,7 +753,7 @@ namespace WorldServer.World.Objects
             DispatchPacket(Out, false);
 
             if (Zone != null && Zone.Region != null && Spawn != null)
-                Occlusion.SetFixtureVisible(Spawn.DoorId, false);
+                ZoneService.OcclusionProvider.SetFixtureVisible(Spawn.DoorId, false);
 
             if (autoClose)
                 EvtInterface.AddEvent(CloseDoor, 7000, 1);
@@ -769,7 +769,7 @@ namespace WorldServer.World.Objects
             VfxState = 0;
 
             if (Zone != null && Zone.Region != null && Spawn != null)
-                Occlusion.SetFixtureVisible(Spawn.DoorId, true);
+                ZoneService.OcclusionProvider.SetFixtureVisible(Spawn.DoorId, true);
 
             PacketOut Out = new PacketOut((byte)Opcodes.F_UPDATE_STATE, 20);
             Out.WriteUInt16(Oid);

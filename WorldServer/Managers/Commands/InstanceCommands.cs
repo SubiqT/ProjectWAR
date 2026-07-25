@@ -2,6 +2,7 @@
 using FrameWork;
 using System;
 using System.Collections.Generic;
+using WorldServer.Services.World;
 using WorldServer.World.Battlefronts.Keeps;
 using WorldServer.World.Map;
 using WorldServer.World.Objects;
@@ -198,7 +199,7 @@ namespace WorldServer.Managers.Commands
 
                 if (open == 0)
                 {
-                    Occlusion.SetFixtureVisible((uint)uniqueID, true);
+                    ZoneService.OcclusionProvider.SetFixtureVisible((uint)uniqueID, true);
                     Out.WritePacketString(@"|17 55 00 00 08 00 38 49 00 16 09 4B 00 |.<q.U....8I...K.|
                                         |0C B7 6C FF FF 1E 02 00 01 67 2E 00 00 06 00 00 |..l......g......|
                                         |00 00 52 BF 67 55 BB 00 00 00 00 0E 47 61 74 65 |..R.gU......Gate|
@@ -206,7 +207,7 @@ namespace WorldServer.Managers.Commands
                 }
                 else
                 {
-                    Occlusion.SetFixtureVisible((uint)uniqueID, false);
+                    ZoneService.OcclusionProvider.SetFixtureVisible((uint)uniqueID, false);
                     Out.WritePacketString(@"|17 55 00 01 08 00 38 49 00 16 09 4B 00 |.<q.U....8I...K.|
                                         |0C B7 6C FF FF 1E 02 00 01 67 2E 00 00 06 00 00 |..l......g......|
                                         |00 00 52 BF 67 55 BB 00 00 00 00 0E 47 61 74 65 |..R.gU......Gate|
@@ -264,7 +265,7 @@ namespace WorldServer.Managers.Commands
                 var door = (KeepDoor.KeepGameObject)plr.CbtInterface.GetCurrentTarget();
 
                 plr.SendClientMessage("DoorID=" + door.DoorId);
-                plr.SendClientMessage("Occlusion_Visible=" + Occlusion.GetFixtureVisible(door.DoorId));
+                plr.SendClientMessage("Occlusion_Visible=" + ZoneService.OcclusionProvider.GetFixtureVisible(door.DoorId));
             }
             return true;
         }

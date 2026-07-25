@@ -200,5 +200,10 @@ namespace WorldServer.World.Map
 
             return GetFixtureVisible(zoneID, (uint)uniqueID, (byte)(doorIndex + 1));
         }
+
+        // Explicit so these do not collide with the static overloads above.
+        bool IOcclusionProvider.SetFixtureVisible(uint doorId, bool visible) => SetFixtureVisible(doorId, visible);
+
+        bool IOcclusionProvider.GetFixtureVisible(uint doorId) => GetFixtureVisible(doorId);
     }
 }

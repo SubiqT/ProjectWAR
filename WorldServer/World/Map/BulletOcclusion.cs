@@ -124,8 +124,49 @@ namespace WorldServer.Physics
             }
         }
 
-        public string RemoveZeros(string input)
+        /// <summary>
+        /// Door identifiers pack the zone, the fixture's unique id and the door index
+        /// into one value, matching the layout the native provider decodes.
+        /// </summary>
+        private static void DecodeDoorId(uint doorId, out int zoneId, out int fixtureId)
         {
+            zoneId = ((int)doorId >> 20) & 0x3FF;
+            fixtureId = ((((int)doorId >> 30) & 0x3) << 14) | (((int)doorId >> 6) & 0x3FFF);
+        }
+
+        private PhysicsZone GetZone(int zoneId)
+        {
+            if (Zones == null || zoneId < 0 || zoneId >= Zones.Length)
+                return null;
+
+            return Zones[zoneId];
+        }
+
+        public bool SetFixtureVisible(uint doorId, bool visible)
+        {
+            DecodeDoorId(doorId, out int zoneId, out int fixtureId);
+
+            PhysicsZone zone = GetZone(zoneId);
+
+            if (zone == null)
+            {
+                Log.Debug("[OCCLUSION]", $"No physics zone {zoneId} for door {doorId}.");
+                return false;
+            }
+
+            return zone.SetFixtureVisible(fixtureId, visible);
+        }
+
+        public bool GetFixtureVisible(uint doorId)
+        {
+            DecodeDoorId(doorId, out int zoneId, out int fixtureId);
+
+            PhysicsZone zone = GetZone(zoneId);
+
+            return zone != null && zone.GetFixtureVisible(fixtureId);
+        }
+
+        public string RemoveZeros(string input)        {
             int startIndex = -1;
             for (int i = 0; i < input.Length; ++i)
             {
@@ -336,6 +377,60 @@ namespace WorldServer.Physics
         public BvhTriangleMeshShape Terrain { get; private set; }
         public Dictionary<int, NifInfo> ModelInfos { get; private set; } = new Dictionary<int, NifInfo>();
 
+        private readonly Dictionary<int, List<CollisionObject>> _fixtures = new Dictionary<int, List<CollisionObject>>();
+        private readonly HashSet<int> _hiddenFixtures = new HashSet<int>();
+
+        private void TrackFixture(int fixtureId, CollisionObject fixture)
+        {
+            lock (_fixtures)
+            {
+                if (!_fixtures.TryGetValue(fixtureId, out List<CollisionObject> bodies))
+                {
+                    bodies = new List<CollisionObject>();
+                    _fixtures[fixtureId] = bodies;
+                }
+
+                bodies.Add(fixture);
+            }
+        }
+
+        /// <summary>
+        /// Adds or removes a fixture's collision bodies so raycasts stop seeing it.
+        /// Used for doors, which block line of sight only while closed.
+        /// </summary>
+        public bool SetFixtureVisible(int fixtureId, bool visible)
+        {
+            lock (_fixtures)
+            {
+                if (!_fixtures.TryGetValue(fixtureId, out List<CollisionObject> bodies))
+                    return false;
+
+                if (visible == !_hiddenFixtures.Contains(fixtureId))
+                    return true;
+
+                foreach (CollisionObject body in bodies)
+                {
+                    if (visible)
+                        AddCollisionObject(body);
+                    else
+                        RemoveCollisionObject(body);
+                }
+
+                if (visible)
+                    _hiddenFixtures.Remove(fixtureId);
+                else
+                    _hiddenFixtures.Add(fixtureId);
+
+                return true;
+            }
+        }
+
+        public bool GetFixtureVisible(int fixtureId)
+        {
+            lock (_fixtures)
+                return _fixtures.ContainsKey(fixtureId) && !_hiddenFixtures.Contains(fixtureId);
+        }
+
         private PhysicsZone(DefaultCollisionConfiguration conf, CollisionDispatcher dispatcher, ConstraintSolver solver, BroadphaseInterface broadphase) : base(dispatcher, broadphase, solver, conf)
         {
             CollisionConf = conf;
@@ -493,6 +588,8 @@ namespace WorldServer.Physics
                 AddCollisionObject(rigid);
                 rigid.WorldTransform = startTransform;
                 rigid.ForceActivationState(ActivationState.DisableSimulation);
+
+                TrackFixture(info.ID, rigid);
 
                 rbInfo.Dispose();
             }

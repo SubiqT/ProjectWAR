@@ -98,5 +98,13 @@ namespace WorldServer.World.Physics
         float originX, float originY, float originZ,
         float targetX, float targetY, float targetZ,
         bool terrain, ref OcclusionInfo result);
+
+        /// <summary>
+        /// Shows or hides a fixture for line of sight purposes. Doors block sight
+        /// while closed, so they are hidden when opened.
+        /// </summary>
+        bool SetFixtureVisible(uint doorId, bool visible);
+
+        bool GetFixtureVisible(uint doorId);
     }
 }

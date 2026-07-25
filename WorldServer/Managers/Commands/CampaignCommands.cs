@@ -63,7 +63,7 @@ namespace WorldServer.Managers.Commands
             foreach (var door in keep.Doors)
             {
                 plr.SendClientMessage($"DoorId : {door.Info.DoorId} Interact:{door.GameObject.InteractState} AutoAttack:{door.GameObject.CanAutoAttack}");
-                plr.SendClientMessage("Occlusion_Visible:" + Occlusion.GetFixtureVisible(door.GameObject.DoorId));
+                plr.SendClientMessage("Occlusion_Visible:" + ZoneService.OcclusionProvider.GetFixtureVisible(door.GameObject.DoorId));
             }
         }
 
