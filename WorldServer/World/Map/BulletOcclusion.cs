@@ -11,6 +11,11 @@ namespace WorldServer.Physics
 {
     public class BulletOcclusion : IOcclusionProvider
     {
+        public BulletOcclusion()
+        {
+            BulletNativeLibrary.Register();
+        }
+
         public bool Initialized { get; set; } = false;
         public PhysicsZone[] Zones { get; private set; }
 

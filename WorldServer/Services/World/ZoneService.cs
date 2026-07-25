@@ -17,7 +17,7 @@ namespace WorldServer.Services.World
     public class ZoneService : ServiceBase
     {
         public static List<Zone_Info> _Zone_Info;
-        public static IOcclusionProvider OcclusionProvider = new Occlusion();
+        public static IOcclusionProvider OcclusionProvider = new BulletOcclusion();
 
         [LoadingFunction(true)]
         public static void LoadZone_Info()
