@@ -31,15 +31,14 @@ namespace WorldServer.World.Battlefronts.Keeps
                 Out.WriteByte((byte)keep.Realm);
                 Out.WriteByte((byte)doors.Count);
                 Out.WriteByte(keep.Rank); // Rank
-                if (doors.Count > 0)
-                    if (innerDoor != null)
-                        Out.WriteByte((byte)((innerDoor.GameObject.PctHealth))); // Door health
-                    else
-                    {
-                        Out.WriteByte(0);
-                    }
+
+                // A door has no GameObject when its proto is missing from the world
+                // data, in which case its health is unknown rather than zero.
+                if (doors.Count > 0 && innerDoor?.GameObject != null)
+                    Out.WriteByte((byte)innerDoor.GameObject.PctHealth); // Door health
                 else
                     Out.WriteByte(0);
+
                 Out.WriteByte(0); // Next rank %
             }
 

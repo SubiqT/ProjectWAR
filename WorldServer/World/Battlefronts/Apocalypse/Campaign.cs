@@ -759,8 +759,20 @@ namespace WorldServer.World.Battlefronts.Apocalypse
                 if (info.Doors != null)
                 {
                     BattlefrontLogger.Trace($"Adding {info.Doors.Count} doors for Keep {info.KeepId}");
+
                     foreach (Keep_Door door in info.Doors)
+                    {
+                        // Without a proto the door can never spawn a GameObject, and the
+                        // keep logic assumes every door it holds has one.
+                        if (GameObjectService.GetGameObjectProto(door.GameObjectId) == null)
+                        {
+                            BattlefrontLogger.Error(
+                                $"Skipping door {door.DoorId} of keep {info.KeepId}: no gameobject proto {door.GameObjectId} in the world data.");
+                            continue;
+                        }
+
                         keep.Doors.Add(new KeepDoor(Region, door, keep));
+                    }
                 }
             }
         }
