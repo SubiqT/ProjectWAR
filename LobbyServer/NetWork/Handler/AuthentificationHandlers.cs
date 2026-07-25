@@ -45,7 +45,11 @@ namespace LobbyServer.NetWork.Handler
             try
             {
                 AuthSessionTokenReq.Builder authReq = AuthSessionTokenReq.CreateBuilder();
-                authReq.MergeFrom(packet.ToArray());
+
+                // PacketIn is the whole receive buffer, so ToArray would hand protobuf
+                // the size prefix, the opcode and any packet that followed. Read exactly
+                // this packet's body instead.
+                authReq.MergeFrom(packet.Read((int)packet.Size));
 
                 string session = Encoding.ASCII.GetString(authReq.SessionToken.ToByteArray());
                 Log.Debug("AuthSession", "session " + session);
