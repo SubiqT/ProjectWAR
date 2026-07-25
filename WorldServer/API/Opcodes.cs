@@ -71,13 +71,9 @@
         GET_IN_RANGE,
         IN_RANGE_LIST,
 
-        EXECUTE_SCRIPT,
-        EXECUTE_SCRIPT_ERROR,
-        EXECUTE_SCRIPT_PRINT,
-        EXECUTE_SCRIPT_EXCEPTION,
-        EXECUTE_SCRIPT_OK,
-
-        CREATE_STATIC,
+        // 59 to 63 were the EXECUTE_SCRIPT opcodes, removed with the runtime script
+        // compiler. The following values are pinned so the wire protocol is unchanged.
+        CREATE_STATIC = 64,
 
         ZONE_PIN,
         ZONE_GET_LIST,
