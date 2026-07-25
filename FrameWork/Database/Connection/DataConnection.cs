@@ -4,8 +4,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.Odbc;
-using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Net.Sockets;
@@ -456,37 +454,6 @@ namespace FrameWork
 
                         break;
                     }
-                case ConnectionType.DATABASE_ODBC:
-                    {
-                        try
-                        {
-                            var conn = new OdbcConnection(_connString);
-                            var adapter = new OdbcDataAdapter("SELECT * from " + tableName, conn);
-
-                            adapter.Fill(dataSet.Tables[tableName]);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new DatabaseException("Can not load table ", ex);
-                        }
-
-                        break;
-                    }
-                case ConnectionType.DATABASE_OLEDB:
-                    {
-                        try
-                        {
-                            var conn = new OleDbConnection(_connString);
-                            var adapter = new OleDbDataAdapter("SELECT * from " + tableName, conn);
-
-                            adapter.Fill(dataSet.Tables[tableName]);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new DatabaseException("Can not load table ", ex);
-                        }
-                        break;
-                    }
             }
         }
 
@@ -528,72 +495,9 @@ namespace FrameWork
 
                         break;
                     }
-                case ConnectionType.DATABASE_ODBC:
-                    {
-                        try
-                        {
-                            var conn = new OdbcConnection(_connString);
-                            var adapter = new OdbcDataAdapter("SELECT * from " + tableName, conn);
-                            var builder = new OdbcCommandBuilder(adapter);
-
-                            adapter.DeleteCommand = builder.GetDeleteCommand();
-                            adapter.UpdateCommand = builder.GetUpdateCommand();
-                            adapter.InsertCommand = builder.GetInsertCommand();
-
-                            DataSet changes;
-                            lock (dataSet) // lock dataset to prevent changes to it
-                            {
-                                adapter.ContinueUpdateOnError = true;
-                                changes = dataSet.GetChanges();
-                                adapter.Update(changes, tableName);
-                                dataSet.AcceptChanges();
-                            }
-
-                            PrintDatasetErrors(changes);
-
-                            conn.Close();
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new DatabaseException("Can not save table ", ex);
-                        }
-
-                        break;
-                    }
                 case ConnectionType.DATABASE_MYSQL:
                     {
                         return;
-                    }
-                case ConnectionType.DATABASE_OLEDB:
-                    {
-                        try
-                        {
-                            var conn = new OleDbConnection(_connString);
-                            var adapter = new OleDbDataAdapter("SELECT * from " + tableName, conn);
-                            var builder = new OleDbCommandBuilder(adapter);
-
-                            adapter.DeleteCommand = builder.GetDeleteCommand();
-                            adapter.UpdateCommand = builder.GetUpdateCommand();
-                            adapter.InsertCommand = builder.GetInsertCommand();
-
-                            DataSet changes;
-                            lock (dataSet) // lock dataset to prevent changes to it
-                            {
-                                adapter.ContinueUpdateOnError = true;
-                                changes = dataSet.GetChanges();
-                                adapter.Update(changes, tableName);
-                                dataSet.AcceptChanges();
-                            }
-
-                            PrintDatasetErrors(changes);
-
-                            conn.Close();
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new DatabaseException("Can not save table", ex);
-                        }
-                        break;
                     }
             }
         }

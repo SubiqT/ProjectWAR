@@ -43,8 +43,8 @@ namespace Common
     /// Manages all account-related operations, such as creating, retrieving, and updating accounts.
     /// This class also handles account caching to improve performance.
     /// </summary>
-    [Rpc(true, System.Runtime.Remoting.WellKnownObjectMode.Singleton, 1)]
-    public class AccountMgr : RpcObject
+    [Rpc(typeof(IAccountMgr), true, RpcMode.Singleton, 1)]
+    public class AccountMgr : RpcObject, IAccountMgr
     {
         // Account Database
         public static IObjectDatabase Database = null;
