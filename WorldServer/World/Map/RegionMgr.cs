@@ -604,6 +604,19 @@ namespace WorldServer.World.Map
         public Object[] Objects = new Object[MaxObjects];
         public Dictionary<uint, PublicQuest> PublicQuests = new Dictionary<uint, PublicQuest>();
         private readonly List<ObjectAdd> _objectsToAdd = new List<ObjectAdd>();
+
+        /// <summary>
+        /// Objects queued by AddObject that this region's update thread has not
+        /// absorbed yet. They have no Region assigned until it does.
+        /// </summary>
+        public int PendingObjectCount
+        {
+            get
+            {
+                lock (_objectsToAdd)
+                    return _objectsToAdd.Count;
+            }
+        }
         private readonly List<ObjectRemove> _objectsToRemove = new List<ObjectRemove>();
 
         public void GenerateOid(Object obj)

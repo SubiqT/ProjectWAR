@@ -23,6 +23,9 @@ namespace WorldServer
 {
     internal class Core
     {
+        /// <summary>Ability packet dumps loaded at startup, relative to the working directory.</summary>
+        private const string AbilitiesFolder = "Abilities";
+
         public static WorldConfigs Config;
         public static AccountConfig AccountConfig;
         public static RpcClient Client;
@@ -167,15 +170,15 @@ namespace WorldServer
             WorldMgr.StartingPairing = WorldMgr.Database.ExecuteQueryInt("SELECT FLOOR(RAND() * 3) + 1");
 
             // Ensure directory structure is correct
-            if (!Directory.Exists("Zones"))
+            if (!Directory.Exists(Config.ZoneFolder))
             {
-                Log.Error("Directory Check", "Zones directory does not exist");
+                Log.Error("Directory Check", $"Zones directory {Config.ZoneFolder} does not exist");
                 ConsoleMgr.WaitAndExit(2000);
             }
 
-            if (!Directory.Exists("Abilities"))
+            if (!Directory.Exists(AbilitiesFolder))
             {
-                Log.Error("Directory Check", "Abilities directory does not exist");
+                Log.Error("Directory Check", $"Abilities directory {AbilitiesFolder} does not exist");
                 ConsoleMgr.WaitAndExit(2000);
             }
 
@@ -213,6 +216,10 @@ namespace WorldServer
             Log.Debug("Battlefront Manager", "Attaching Campaigns to Regions");
             // Attach Battlefronts to regions
             WorldMgr.AttachCampaignsToRegions();
+
+            // Objectives are queued into their regions, so give the region threads a
+            // chance to take ownership before the campaign touches them.
+            WorldMgr.WaitForPendingObjects(TimeSpan.FromSeconds(30));
 
             Log.Debug("Battlefront Manager", "Locking Battlefronts");
             WorldMgr.UpperTierCampaignManager.LockBattleFrontsAllRegions(4);

@@ -91,9 +91,41 @@ namespace WorldServer.Managers
             return Mgr;
         }
 
-        public static void Stop()
+        /// <summary>
+        /// Blocks until every region has absorbed the objects queued into it, or the
+        /// timeout expires. AddObject only enqueues, so an object has no Region until
+        /// its region's update thread picks it up. Campaign setup runs on the startup
+        /// thread and must not touch objectives before then.
+        /// </summary>
+        public static void WaitForPendingObjects(TimeSpan timeout)
         {
-            Log.Success("WorldMgr", "Stop");
+            var deadline = DateTime.UtcNow + timeout;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                int pending;
+
+                RegionsRWLock.EnterReadLock();
+                try
+                {
+                    pending = _Regions.Where(region => region != null).Sum(region => region.PendingObjectCount);
+                }
+                finally
+                {
+                    RegionsRWLock.ExitReadLock();
+                }
+
+                if (pending == 0)
+                    return;
+
+                Thread.Sleep(RegionMgr.REGION_UPDATE_INTERVAL);
+            }
+
+            Log.Error("Regions", $"Regions still had objects pending after {timeout.TotalSeconds:0.#}s.");
+        }
+
+        public static void Stop()
+        {            Log.Success("WorldMgr", "Stop");
             foreach (RegionMgr Mgr in _Regions)
                 Mgr.Stop();
 
@@ -812,9 +844,9 @@ namespace WorldServer.Managers
             // Preload T4 regions
             Log.Info("Regions", "Preloading pairing regions...");
             // Tier 1
-            //GetRegion(1, true, Constants.RegionName[1]); // dw/gs
-            //GetRegion(3, true, Constants.RegionName[3]); // he/de
-            //GetRegion(8, true, Constants.RegionName[8]); // em/ch
+            GetRegion(1, true, Constants.RegionName[1]); // dw/gs
+            GetRegion(3, true, Constants.RegionName[3]); // he/de
+            GetRegion(8, true, Constants.RegionName[8]); // em/ch
 
             // Tier 2
             //GetRegion(12, true, Constants.RegionName[12]); // dw/gs
@@ -827,9 +859,9 @@ namespace WorldServer.Managers
             //GetRegion(6, true, Constants.RegionName[6]); // em/ch
 
             // Tier 4
-            //GetRegion(2, true, Constants.RegionName[2]); // dw/gs
-            //GetRegion(4, true, Constants.RegionName[4]);  // he/de
-            //GetRegion(11, true, Constants.RegionName[11]); // em/ch
+            GetRegion(2, true, Constants.RegionName[2]); // dw/gs
+            GetRegion(4, true, Constants.RegionName[4]);  // he/de
+            GetRegion(11, true, Constants.RegionName[11]); // em/ch
 
             // removed for now, as this will also trigger an attempt to load BOs for the region.
             //GetRegion(9, true, Constants.RegionName[9]); // lotd
