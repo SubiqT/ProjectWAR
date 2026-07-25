@@ -11,6 +11,12 @@ namespace WorldServer.Physics
 {
     public class BulletOcclusion : IOcclusionProvider
     {
+        /// <summary>"OCC" plus a version byte, a header length and reserved space.</summary>
+        internal const int OcclusionHeaderLength = 16;
+
+        /// <summary>Each chunk starts with its type and body length.</summary>
+        internal const int ChunkHeaderLength = 8;
+
         public BulletOcclusion()
         {
             BulletNativeLibrary.Register();
@@ -529,40 +535,38 @@ namespace WorldServer.Physics
             }
             using (BinaryReader reader = new BinaryReader(new FileStream(v, FileMode.Open)))
             {
-                reader.ReadBytes(16); // header, version, length
-                reader.ReadInt32(); // region id
-                reader.ReadInt32(); //zone count
-                reader.ReadInt32(); //zoneId
-                reader.ReadInt32(); // xOff
-                reader.ReadInt32(); //yOff
-                reader.ReadInt32(); //nif count
-                reader.ReadInt32(); //fix count
-                while (reader.BaseStream.Position < reader.BaseStream.Length)
+                // File header: "OCC" plus a version byte, then the header length and
+                // reserved space. Chunks follow immediately after it.
+                reader.ReadBytes(BulletOcclusion.OcclusionHeaderLength);
+
+                while (reader.BaseStream.Position + BulletOcclusion.ChunkHeaderLength <= reader.BaseStream.Length)
                 {
                     ChunkType type = (ChunkType)reader.ReadInt32();
                     int length = reader.ReadInt32();
+
+                    if (length < 0 || reader.BaseStream.Position + length > reader.BaseStream.Length)
+                    {
+                        Log.Error("[OCCLUSION]", $"{v} declares a {length} byte {type} chunk that runs past the end of the file.");
+                        return;
+                    }
+
+                    // Each handler reads only part of its chunk, so seek to the next
+                    // chunk boundary rather than advancing relative to the position
+                    // the handler happened to leave behind.
+                    long next = reader.BaseStream.Position + length;
+
                     switch (type)
                     {
-                        case ChunkType.Terrain:
-                            {
-                                break;
-                            }
                         case ChunkType.Collision:
-                            {
-                                ReadCollision(reader);
-                                break;
-                            }
+                            ReadCollision(reader);
+                            break;
+
                         case ChunkType.Water:
-                            {
-                                ReadWater(reader);
-                                break;
-                            }
-                        case ChunkType.Region:
-                            {
-                                break;
-                            }
+                            ReadWater(reader);
+                            break;
                     }
-                    reader.BaseStream.Position += length;
+
+                    reader.BaseStream.Position = next;
                 }
             }
         }
