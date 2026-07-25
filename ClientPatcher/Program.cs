@@ -108,6 +108,41 @@ namespace ClientPatcher
             Console.WriteLine("WAR.exe  patched");
         }
 
+        /// <summary>
+        /// Finds the login config by content. Clients built by different launchers
+        /// store it under different hashes, so the launcher's constant is only a hint.
+        /// </summary>
+        private static long? FindLoginConfigEntry(MYP archive)
+        {
+            const string Marker = "MythLoginServiceConfig";
+            const int MaxSize = 64 * 1024;
+
+            foreach (var pair in archive.Enteries)
+            {
+                if (pair.Value.UnCompressedSize == 0 || pair.Value.UnCompressedSize > MaxSize)
+                    continue;
+
+                byte[] content;
+
+                try
+                {
+                    content = archive.ReadFile(pair.Value);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (content == null || content.Length == 0)
+                    continue;
+
+                if (System.Text.Encoding.ASCII.GetString(content).Contains(Marker))
+                    return pair.Key;
+            }
+
+            return null;
+        }
+
         private static void ReportOrPatchLoginConfig(string archivePath, string configPath)
         {
             if (!File.Exists(archivePath))
@@ -118,15 +153,28 @@ namespace ClientPatcher
             using (FileStream stream = File.Open(archivePath, FileMode.Open, access))
             using (var archive = new MYP(MythicPackage.ART, stream))
             {
-                if (!archive.Enteries.ContainsKey(LoginConfigHash))
-                    throw new InvalidDataException(
-                        $"data.myp has no entry 0x{LoginConfigHash:X} for mythloginserviceconfig.xml.");
+                bool present = archive.Enteries.ContainsKey(LoginConfigHash);
+                long hash = LoginConfigHash;
 
-                Console.WriteLine($"data.myp entry 0x{LoginConfigHash:X} present, {archive.Enteries.Count} entries total");
+                if (!present)
+                {
+                    long? found = FindLoginConfigEntry(archive);
+
+                    if (found == null)
+                        throw new InvalidDataException(
+                            $"data.myp has no login config: neither hash 0x{LoginConfigHash:X} nor any entry containing MythLoginServiceConfig.");
+
+                    hash = found.Value;
+                    Console.WriteLine($"data.myp entry 0x{LoginConfigHash:X} absent, found login config under 0x{hash:X} instead");
+                }
+                else
+                {
+                    Console.WriteLine($"data.myp entry 0x{hash:X} present, {archive.Enteries.Count} entries total");
+                }
 
                 if (configPath == null)
                 {
-                    byte[] current = archive.ReadFile(archive.Enteries[LoginConfigHash]);
+                    byte[] current = archive.ReadFile(archive.Enteries[hash]);
                     Console.WriteLine($"data.myp current login config, {current.Length} bytes:");
                     Console.WriteLine(System.Text.Encoding.UTF8.GetString(current));
 
@@ -134,7 +182,7 @@ namespace ClientPatcher
                 }
 
                 byte[] config = File.ReadAllBytes(configPath);
-                archive.UpdateFile(LoginConfigHash, config);
+                archive.UpdateFile(hash, config);
                 archive.Save();
 
                 Console.WriteLine($"data.myp login config replaced with {configPath} ({config.Length} bytes)");
