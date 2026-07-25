@@ -742,7 +742,7 @@ namespace WorldServer.Managers
         /// </summary>
         public static void LoadPendingCharacters()
         {
-            AccountMgr mgr = Core.AcctMgr;
+            IAccountMgr mgr = Core.AcctMgr;
 
             if (mgr == null)
             {

@@ -26,7 +26,7 @@ namespace WorldServer
         public static WorldConfigs Config;
         public static AccountConfig AccountConfig;
         public static RpcClient Client;
-        public static AccountMgr AcctMgr => Client?.GetServerObject<AccountMgr>();
+        public static IAccountMgr AcctMgr => Client?.GetServerObject<IAccountMgr>();
         public static TCPServer Server;
         public static Realm Rm;
         private static Timer _timer;
