@@ -1,12 +1,11 @@
 ﻿using Common;
 using FrameWork;
+using FrameWork.Misc;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using WorldServer.Services.World;
-using Color = System.Drawing.Color;
 
 namespace WorldServer.Managers
 {
@@ -73,8 +72,6 @@ namespace WorldServer.Managers
         public List<AreaInfluence> Influences;
         public List<Zone_Area> Areas;
         public List<PQuest_Info> PQAreas;
-        public Color[,] HeightMapOffset;
-        public Color[,] HeightMapTerrain;
         public byte[,] AreaPixels = new byte[1024, 1024];
         public byte[,] PQAreaPixels = new byte[1024, 1024];
 
@@ -87,12 +84,9 @@ namespace WorldServer.Managers
 
             try
             {
-                //LoadHeightMap();
                 LoadInfluences();
                 LoadAreaMap();
                 LoadPQAreaMap();
-
-                //Log.Success("ClientFile", zoneId + " Loaded " + Influences.Count + " influence entries and " + Areas.Count + " area infos.");
             }
             catch (Exception e)
             {
@@ -100,88 +94,37 @@ namespace WorldServer.Managers
             }
         }
 
-        public void LoadHeightMap()
-        {
-            string filePath = Path.Combine(Folder, "offset.png");
-            if (File.Exists(filePath))
-            {
-                int x, y;
-
-                using (Bitmap map = new Bitmap(filePath))
-                {
-                    HeightMapOffset = new Color[map.Width, map.Height];
-                    for (x = 0; x < map.Width; ++x)
-                    {
-                        for (y = 0; y < map.Height; ++y)
-                        {
-                            HeightMapOffset[x, y] = map.GetPixel(x, y);
-                        }
-                    }
-                }
-
-                filePath = Path.Combine(Folder, "terrain.png");
-                using (Bitmap map = new Bitmap(filePath))
-                {
-                    HeightMapTerrain = new Color[map.Width, map.Height];
-                    for (x = 0; x < map.Width; ++x)
-                    {
-                        for (y = 0; y < map.Height; ++y)
-                        {
-                            HeightMapTerrain[x, y] = map.GetPixel(x, y);
-                        }
-                    }
-                }
-            }
-        }
-
         public void LoadAreaMap()
         {
-            string filePath = Path.Combine(Folder, "areas" + $"{ZoneId:000}" + ".png");
-            if (File.Exists(filePath))
-            {
-                //Log.Success("LoadAreaMap", "Loading area map for zone ID "+ZoneId);
-                using (Bitmap map = new Bitmap(filePath))
-                {
-                    for (int x = 0; x < 1024; ++x)
-                    {
-                        for (int y = 0; y < 1024; ++y)
-                        {
-                            Color curPx = map.GetPixel(x, y);
-                            AreaPixels[x, y] = (byte)(1 + (curPx.R >> 4) + (curPx.G >> 4));
-                        }
-                    }
-                }
-
-                //Log.Success("LoadAreaMap", "Loaded area map for zone ID " + ZoneId);
-            }
-
-            //else Log.Error("LoadAreaMap", "No area map found for zone ID "+ZoneId);
+            LoadAreaOverlay(Path.Combine(Folder, "areas" + $"{ZoneId:000}" + ".png"), AreaPixels);
         }
 
-        //Use 1024x1024 PNG color overlay to define a PQ area.
-        //Color must be different for each pq for the pq to function correctly.
+        // Uses a 1024x1024 PNG colour overlay to define a PQ area. The colour must
+        // be different for each PQ for the PQ to function correctly.
         public void LoadPQAreaMap()
         {
-            string filePath = Path.Combine(Folder, "pqarea" + $"{ZoneId:000}" + ".png");
-            if (File.Exists(filePath))
+            LoadAreaOverlay(Path.Combine(Folder, "pqarea" + $"{ZoneId:000}" + ".png"), PQAreaPixels);
+        }
+
+        /// <summary>
+        /// Reads a zone overlay bitmap, folding the red and green channels into the
+        /// single area identifier the world uses.
+        /// </summary>
+        private static void LoadAreaOverlay(string filePath, byte[,] pixels)
+        {
+            if (!File.Exists(filePath))
+                return;
+
+            PngImage map = PngImage.Load(filePath);
+
+            int width = Math.Min(map.Width, pixels.GetLength(0));
+            int height = Math.Min(map.Height, pixels.GetLength(1));
+
+            for (int x = 0; x < width; ++x)
             {
-                //Log.Success("LoadPQAreaMap", "Loading PQ area map for zone ID " + ZoneId);
-                using (Bitmap map = new Bitmap(filePath))
-                {
-                    for (int x = 0; x < 1024; ++x)
-                    {
-                        for (int y = 0; y < 1024; ++y)
-                        {
-                            Color curPx = map.GetPixel(x, y);
-                            PQAreaPixels[x, y] = (byte)(1 + (curPx.R >> 4) + (curPx.G >> 4));
-                        }
-                    }
-                }
-
-                //Log.Success("LoadPQAreaMap", "Loaded PQ area map for zone ID " + ZoneId);
+                for (int y = 0; y < height; ++y)
+                    pixels[x, y] = (byte)(1 + (map.GetRed(x, y) >> 4) + (map.GetGreen(x, y) >> 4));
             }
-
-            //else Log.Error("LoadPQAreaMap", "No PQ area map found for zone ID " + ZoneId);
         }
 
         public void LoadInfluences()
@@ -239,73 +182,41 @@ namespace WorldServer.Managers
 
     public class HeightMapInfo
     {
+        /// <summary>Heightmaps are sampled on a 64 unit grid.</summary>
+        private const int PinsPerSample = 64;
+
         public HeightMapInfo(int zoneID)
         {
             ZoneID = zoneID;
         }
 
         public int ZoneID;
-        public Bitmap Offset;
-        public Bitmap Terrain;
 
+        private byte[] _offset;
+        private byte[] _terrain;
+        private int _width;
+        private int _height;
         private bool _loaded;
 
         public int GetHeight(int pinX, int pinY)
         {
             Load();
 
-            if (Offset == null || Terrain == null)
+            if (_offset == null || _terrain == null)
                 return -1;
 
-            pinX = (int)(pinX / 64f);
-            pinY = (int)(pinY / 64f);
-            Bitmap off = null;
-            lock (Offset)
-            {
-                off = (Bitmap)Offset.Clone();
-            }
+            int x = pinX / PinsPerSample;
+            int y = pinY / PinsPerSample;
 
-            Bitmap terr = null;
-            lock (Terrain)
-            {
-                terr = (Bitmap)Terrain.Clone();
-            }
-
-            try
-            {
-                if (pinX < 0 || pinX > off.Width || pinX > terr.Width)
-                    return -1;
-
-                if (pinY < 0 || pinY > off.Height || pinY > terr.Height)
-                    return -1;
-            }
-            catch
-            {
+            if (x < 0 || x >= _width || y < 0 || y >= _height)
                 return -1;
-            }
 
-            float fZValue = 0.0f;
+            int sample = y * _width + x;
 
-            try
-            {
-                {
-                    Color iColor = off.GetPixel(pinX, pinY);
-                    fZValue += iColor.R * 31; // 0 -> 30
-                }
+            // The offset map carries the coarse height, the terrain map the remainder.
+            float zValue = (_offset[sample] * 31) + _terrain[sample];
 
-                {
-                    Color iColor = terr.GetPixel(pinX, pinY);
-                    fZValue += iColor.R;
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Error("HeightMap", e.ToString());
-            }
-
-            fZValue *= 16;
-
-            return (int)fZValue - 30;
+            return (int)(zValue * 16) - 30;
         }
 
         public void Load()
@@ -315,10 +226,20 @@ namespace WorldServer.Managers
 
             _loaded = true;
 
+            string folder = Core.Config.ZoneFolder + "zone" + string.Format("{0:000}", ZoneID) + "/";
+
             try
             {
-                Offset = new Bitmap(Core.Config.ZoneFolder + "zone" + string.Format("{0:000}", ZoneID) + "/offset.png"); // /zones/zone003/offset.png
-                Terrain = new Bitmap(Core.Config.ZoneFolder + "zone" + string.Format("{0:000}", ZoneID) + "/terrain.png"); // /zones/zone003/offset.png
+                PngImage offset = PngImage.Load(Path.Combine(folder, "offset.png"));
+                PngImage terrain = PngImage.Load(Path.Combine(folder, "terrain.png"));
+
+                if (offset.Width != terrain.Width || offset.Height != terrain.Height)
+                    throw new InvalidDataException($"Offset map is {offset.Width}x{offset.Height} but terrain map is {terrain.Width}x{terrain.Height}.");
+
+                _width = offset.Width;
+                _height = offset.Height;
+                _offset = offset.ExtractChannel(0);
+                _terrain = terrain.ExtractChannel(0);
             }
             catch (Exception e)
             {
